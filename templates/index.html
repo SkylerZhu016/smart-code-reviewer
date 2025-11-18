@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能代码批阅助手</title>
+    <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
+    <link rel="stylesheet" href="/static/css/style.css">
+    
+    <!-- 备用Markdown解析函数 -->
+    <script>
+        // 备用Markdown解析函数
+        window.fallbackMarked = {
+            parse: function(text) {
+                if (!text) return '';
+                // 简单的Markdown解析
+                return text
+                    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                    .replace(/`(.+?)`/g, '<code>$1</code>')
+                    .replace(/\n\n/g, '</p><p>')
+                    .replace(/^\s*(.+?)\s*$/gm, '<p>$1</p>')
+                    .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+            }
+        };
+    </script>
+    
+    <!-- 加载本地Marked库 -->
+    <script src="/static/js/marked.min.js"></script>
+    <script>
+        // 确保marked库已加载
+        function loadMarked() {
+            if (typeof marked !== 'undefined') {
+                console.log('Marked库加载成功');
+            } else {
+                console.warn('Marked库加载失败，使用备用方案');
+                window.marked = window.fallbackMarked;
+            }
+        }
+        
+        // 加载Monaco编辑器
+        function loadMonaco() {
+            const script = document.createElement('script');
+            script.src = '/static/js/vs/loader.js';
+            script.onload = function() {
+                console.log('Monaco loader.js 加载成功');
+                // 确保只使用本地路径
+                require.config({ paths: { 'vs': '/static/js/vs' } });
+                console.log('Monaco 环境配置完成，使用本地资源。');
+            };
+            script.onerror = function() {
+                console.error('Monaco loader.js 加载失败');
+                // 错误处理将由 script.js 中的备用编辑器逻辑处理
+            };
+            document.head.appendChild(script);
+        }
+        
+        // 页面加载完成后尝试加载外部资源
+        window.addEventListener('DOMContentLoaded', function() {
+            loadMarked();
+            loadMonaco();
+        });
+    </script>
+</head>
+<body>
+    <!-- 全局加载模态框 -->
+    <div id="global-loading-overlay" class="hidden">
+        <div id="global-loading-modal">
+            <div class="spinner"></div>
+            <p id="loading-status-text">正在处理中，请稍候...</p>
+            <button id="cancel-review-btn">取消操作</button>
+        </div>
+    </div>
+
+    <!-- 页面过渡遮罩 -->
+    <div id="transition-overlay"></div>
+
+    <!-- 学号输入屏幕 -->
+    <div id="student-id-screen" class="screen hidden">
+        <h1>请输入您的学号</h1>
+        <input type="text" id="student-id-entry-input" placeholder="学号（纯数字）" class="large-input">
+        <div class="button-group">
+            <button id="student-id-submit-btn">确认进入</button>
+            <button id="student-id-cancel-btn" class="secondary-btn">返回</button>
+        </div>
+    </div>
+
+    <!-- 身份选择界面 -->
+    <div id="identity-selection-screen" class="screen">
+        <h1>智能代码批阅助手</h1>
+        <p>请选择您的身份以继续</p>
+        <button id="teacher-btn">我是教师</button>
+        <button id="student-btn">我是学生</button>
+    </div>
+
+    <!-- 主应用界面 -->
+    <div id="app-container" class="screen hidden">
+        <!-- 返回按钮 -->
+        <button id="back-to-identity-btn" class="back-button">重新登录</button>
+        <!-- 左侧面板：题目列表 -->
+        <div id="left-panel" class="panel">
+            <div class="panel-header">
+                <h3>题目列表</h3>
+                <button id="add-problem-btn" class="hidden">发布新题目</button>
+            </div>
+            <ul id="problem-list"></ul>
+        </div>
+
+        <!-- 可拖动分割线 -->
+        <div class="divider" id="divider-left"></div>
+
+        <!-- 中间面板：内容与交互区 -->
+        <div id="main-panel" class="panel">
+            <!-- 教师视图：题目编辑 -->
+            <div id="teacher-view" class="view-panel hidden">
+                <h3 id="teacher-view-title">发布新题目</h3>
+                <form id="problem-form">
+                    <div class="form-group">
+                        <label for="problem-title">题目名称</label>
+                        <input type="text" id="problem-title" required>
+                    </div>
+                    <div class="form-group" style="flex-grow: 1; display: flex; flex-direction: column;">
+                        <label for="problem-description">题目描述（支持Markdown）</label>
+                        <textarea id="problem-description" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>测试用例</label>
+                        <ul id="test-case-list"></ul>
+                        <button type="button" id="add-test-case-btn">添加测试用例</button>
+                    </div>
+                    <button type="submit">发布/更新题目</button>
+                </form>
+            </div>
+
+            <!-- 学生视图：题目描述与问答 -->
+            <div id="student-view" class="view-panel hidden">
+                <div id="problem-description-area">
+                    <h3 id="student-view-title">题目描述</h3>
+                    <div id="problem-description-content"></div>
+                </div>
+                <!-- 修复：添加学号输入框 -->
+                <div style="margin: 10px 0;">
+                    <label for="student-id-input">学号 (数字):</label>
+                    <input type="text" id="student-id-input" placeholder="请输入你的学号">
+                </div>
+                <div id="chat-area">
+                    <div class="chat-display" id="chat-display">
+                        <!-- 聊天消息将显示在这里 -->
+                    </div>
+                    <div class="chat-input-container">
+                        <textarea id="main-input" placeholder="对代码有任何问题？在这里追问AI导师..." rows="2"></textarea>
+                        <button id="send-btn">发送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 可拖动分割线 -->
+        <div class="divider" id="divider-right"></div>
+
+        <!-- 右侧面板：代码编辑与结果 -->
+        <div id="right-panel" class="panel">
+            <div class="code-area">
+                <div class="panel-header">
+                    <h3>代码编辑器</h3>
+                    <div id="code-buttons">
+                        <!-- 代码操作按钮 -->
+                        <button id="run-test-btn">自测运行</button>
+                        <button id="submit-btn">提交测试</button>
+                        <button id="ai-review-btn">AI辅导</button>
+                        <button id="export-current-btn">导出当前</button>
+                        <button id="export-all-btn" class="hidden">导出全部</button>
+                    </div>
+                </div>
+                <div id="code-editor"></div>
+            </div>
+            
+            <div class="console-area">
+                <div class="panel-header">
+                    <div class="tab-group">
+                        <button class="tab-button active" data-tab="test">自动化测试</button>
+                        <button class="tab-button" data-tab="ai">AI评估</button>
+                        <button class="tab-button" data-tab="run">模拟运行</button>
+                        <!-- 教师专用标签 -->
+                        <button class="tab-button hidden" id="grading-tab-btn" data-tab="grading">批阅</button>
+                    </div>
+                </div>
+                <div class="console-output">
+                    <div id="test-tab" class="tab-content active"></div>
+                    <div id="ai-tab" class="tab-content"></div>
+                    <div id="run-tab" class="tab-content"></div>
+                    <!-- 批阅内容区 -->
+                    <div id="grading-tab" class="tab-content">
+                        <h4>学生提交列表</h4>
+                        <p>请先从左侧选择一个题目以查看提交。</p>
+                        <ul id="submission-list"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

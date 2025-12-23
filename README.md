@@ -13,19 +13,6 @@
 - **双角色系统**：教师端和学生端分离，满足不同用户需求
 - **代码编辑器**：集成Monaco编辑器，提供专业的代码编写体验
 
-## 分工
-
-本项目由6名团队成员共同开发完成，具体分工如下：
-
-| 序号 | 姓名 | 学号 | 负责模块 |
-|------|------|------|----------|
-| 1 |    |    | 项目架构设计与后端开发 |
-| 2 |    |    | 前端界面设计与实现 |
-| 3 |    |    | AI服务集成与优化 |
-| 4 |    |    | 数据库设计与维护 |
-| 5 |    |    | 代码执行安全模块 |
-| 6 |    |    | 测试用例设计与系统测试 |
-
 ## 技术架构
 
 ### 后端技术栈
@@ -120,17 +107,6 @@
 - **网络**: 稳定的互联网连接（用于访问AI API）
 
 ### 依赖安装
-
-#### 步骤一：安装Python
-1. 访问 [Python官网](https://www.python.org/downloads/) 下载最新版Python
-2. 安装时勾选"Add Python to PATH"选项
-3. 验证安装：打开命令行，输入 `python --version` 或 `python3 --version`
-
-#### 步骤二：下载项目文件
-1. 将整个项目文件夹复制到本地目录
-2. 确保所有子目录和文件结构完整
-
-#### 步骤三：安装依赖包
 打开命令行，进入项目根目录，执行以下命令：
 pip install flask requests fpdf
 
@@ -151,31 +127,7 @@ pip install flask requests fpdf
    BASE_URL = "https://api.deepseek.com/v1"
    MODEL_NAME = "deepseek-chat"
    ```
-
-3. 测试API连接：
-   ```bash
-   # 运行以下Python脚本测试连接
-   python -c "
-   import requests
-   import json
-   from scripts.config import API_KEY, BASE_URL, MODEL_NAME
    
-   headers = {
-       'Authorization': f'Bearer {API_KEY}',
-       'Content-Type': 'application/json'
-   }
-   
-   data = {
-       'model': MODEL_NAME,
-       'messages': [{'role': 'user', 'content': 'Hello, test connection'}],
-       'max_tokens': 50
-   }
-   
-   response = requests.post(f'{BASE_URL}/chat/completions', headers=headers, json=data)
-   print('API连接状态:', '成功' if response.status_code == 200 else '失败')
-   "
-   ```
-
 #### 2. 数据库配置
 - 数据库文件会自动创建在 `database/` 目录下
 - 首次运行时会自动初始化表结构
@@ -229,7 +181,7 @@ pip install flask requests fpdf
 
 1. 打开现代Web浏览器（推荐使用Chrome、Firefox、Safari或Edge的最新版本）
 2. 在地址栏输入：`http://localhost:5000`
-3. 系统将显示主界面，默认为教师端视图
+3. 系统将显示主界面
 
 ### 常见启动问题解决
 

@@ -4,7 +4,7 @@ import os
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # API配置
-API_KEY = "sk-91a2eb4d108c43b6ae762d4da780645d"
+API_KEY = "your_key"
 BASE_URL = "https://api.deepseek.com/v1"
 MODEL_NAME = "deepseek-chat"
 
